@@ -141,6 +141,21 @@ class BossRemote:
                           order='C')
 
 
+def parse_input_args(collection, experiment, channel, config_file=None, token=None, url='https://api.boss.neurodata.io', x=None, y=None, z=None, res=0, outdir='./', full_extent=False, print_metadata=False):
+    result = argparse.Namespace(
+        collection=collection,
+        experiment=experiment,
+        channel=channel,
+        config_file=config_file,
+        token=token,
+        url=url,
+        x=x, y=y, z=z, res=res, outdir=outdir,
+        full_extent=full_extent,
+        print_metadata=print_metadata
+    )
+    return result
+
+
 def parse_cmd_line_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config_file', type=str,
@@ -190,10 +205,8 @@ def download_slices(result, rmt, threads=8):
     ch_meta = rmt.get_channel_metdata()
     datatype = ch_meta['datatype']
 
-    session = requests.Session()
-
     # download blocks of size 512 by 512 by 16 (xyz)
-    chunk_size = (512, 512, 16)
+    chunk_size = (1024, 1024, 16)
     for z in range(result.z[0], result.z[1], chunk_size[2]):
         # re-initialize on every slice of z
         # zyx ordered

@@ -1,7 +1,15 @@
 # ndpull
-Python 3 command line tool to get data from NeuroData.  Can download a full stack of data or specify limits.  View available data at [ndwebtools](https://ndwebtools.neurodata.io/) or [neurodata.io](https://neurodata.io/)
+
+Python 3 command line program to download data from NeuroData.  Can download a full stack of data or specify limits.  View available data at [ndwebtools](https://ndwebtools.neurodata.io/) or [neurodata.io](https://neurodata.io/)
 
 ## Install
+
+### From PyPI
+
+1. `pip install ndpull`
+
+### From github (latest development version)
+
 1. `git clone https://github.com/neurodata/ndpull.git`
 1. `virtualenv env -p python3`
     1. LINUX: `env/bin/activate`
@@ -9,15 +17,16 @@ Python 3 command line tool to get data from NeuroData.  Can download a full stac
 1. `pip install -r requirements.txt`
 
 ## Config
+
 1. generate a [Boss API key](https://api.boss.neurodata.io/v1/mgmt/token) and save it to file named `neurodata.cfg` (example provided: [neurodata.cfg.example](neurodata.cfg.example))
 
 ## Run
 
-```dos
-python .\stackDownload.py --help
-```
+### Command line
 
 ```dos
+> sliceDownload --help
+
 usage: stackDownload.py [-h] [--config_file CONFIG_FILE] [--token TOKEN]
                         [--url URL] [--collection COLLECTION]
                         [--experiment EXPERIMENT] [--channel CHANNEL]
@@ -47,3 +56,33 @@ optional arguments:
                         collection/experiment/channel and quits
 ```
 
+### Within Python
+
+```python
+from ndpull import sliceDownload
+
+collection = 'kharris15'
+experiment = 'apical'
+channel = 'em'
+
+# see neurodata.cfg.example to generate your own
+config_file = 'neurodata.cfg'
+
+# print metadata
+meta = sliceDownload.BossMeta(collection, experiment, channel)
+token, boss_url = sliceDownload.get_boss_config(config_file)
+rmt = sliceDownload.BossRemote(boss_url, token, meta)
+print(rmt)
+
+# download slices with these limits:
+x = [0, 512]
+y = [500, 1000]
+z = [0, 10]
+
+# returns a namespace as a way of passing arguments
+result = sliceDownload.parse_input_args(
+    collection, experiment, channel, config_file, x=x, y=y, z=z, res=0, outdir='./')
+
+# downloads the data
+sliceDownload.download_slices(result, rmt)
+```
