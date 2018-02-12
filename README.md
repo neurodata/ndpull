@@ -11,10 +11,11 @@ Python 3 command line program to download data from NeuroData.  Can download a f
 ### From github (latest development version)
 
 1. `git clone https://github.com/neurodata/ndpull.git`
-1. `virtualenv env -p python3`
+1. `python -m venv env`
     1. LINUX: `env/bin/activate`
     1. WIN: `.\env\Scripts\activate` (Change permissions if on Powershell: [guide](https://virtualenv.pypa.io/en/stable/userguide/#activate-script))
-1. `pip install -r requirements.txt`
+1. `cd ndpull`
+1. `pip install .`
 
 ## Config
 
