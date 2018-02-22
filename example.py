@@ -11,12 +11,12 @@ config_file = 'neurodata.cfg'
 meta = ndpull.BossMeta(collection, experiment, channel)
 token, boss_url = ndpull.get_boss_config(config_file)
 rmt = ndpull.BossRemote(boss_url, token, meta)
-print(rmt)
+print(rmt)  # prints metadata
 
 # download slices with these limits:
-x = [0, 512]
-y = [500, 1000]
-z = [0, 10]
+x = [4096, 4608]
+y = [4608, 5120]
+z = [90, 100]
 
 # returns a namespace as a way of passing arguments
 result = ndpull.collect_input_args(
