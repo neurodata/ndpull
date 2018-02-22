@@ -10,6 +10,7 @@ import sys
 import time
 from functools import partial
 from multiprocessing.dummy import Pool as ThreadPool
+from collections import defaultdict
 
 import blosc
 import numpy as np
@@ -145,6 +146,34 @@ class BossRemote:
                           order='C')
 
 
+def get_cube_lims(rng, stride=16):
+    # stride = height of super cuboid
+
+    first = rng[0]    # inclusive
+    last = rng[1]     # exclusive
+
+    buckets = defaultdict(list)
+    for z in range(first, last):
+        buckets[(z // stride)].append(z)
+
+    return buckets
+
+
+def collect_input_args(collection, experiment, channel, config_file=None, token=None, url='https://api.boss.neurodata.io', x=None, y=None, z=None, res=0, outdir='./', full_extent=False, print_metadata=False):
+    result = argparse.Namespace(
+        collection=collection,
+        experiment=experiment,
+        channel=channel,
+        config_file=config_file,
+        token=token,
+        url=url,
+        x=x, y=y, z=z, res=res, outdir=outdir,
+        full_extent=full_extent,
+        print_metadata=print_metadata
+    )
+    return result
+
+
 def collect_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config_file', type=str,
@@ -194,16 +223,16 @@ def download_slices(result, rmt, threads=4):
     ch_meta = rmt.get_channel_metdata()
     datatype = ch_meta['datatype']
 
-    for z in tqdm(range(result.z[0], result.z[1], CHUNK_SIZE[2])):
+    z_buckets = get_cube_lims(result.z, stride=CHUNK_SIZE[2])
+    for _, z_slices in tqdm(z_buckets.items()):
+        z_rng = [z_slices[0], z_slices[-1] + 1]
+
         # re-initialize on every slice of z
         # zyx ordered
-        data_slices = np.zeros((result.z[1] - result.z[0],
+        data_slices = np.zeros((z_rng[1] - z_rng[0],
                                 result.y[1] - result.y[0],
                                 result.x[1] - result.x[0]),
                                dtype=datatype)
-
-        z_rng = [z, result.z[1] if (
-            z + CHUNK_SIZE[2]) > result.z[1] else (z + CHUNK_SIZE[2])]
 
         for y in range(result.y[0], result.y[1], CHUNK_SIZE[1]):
             y_rng = [y, result.y[1] if (
@@ -222,7 +251,7 @@ def download_slices(result, rmt, threads=4):
             # data = rmt.cutout(x_rng, y_rng, z_rng, datatype, result.res)
             for data, x_rng in zip(data_list, x_rngs):
                 # insert into numpy array
-                data_slices[z_rng[0] - result.z[0]:z_rng[1] - result.z[0],
+                data_slices[:,
                             y_rng[0] - result.y[0]:y_rng[1] - result.y[0],
                             x_rng[0] - result.x[0]:x_rng[1] - result.x[0]] = data
 
@@ -244,7 +273,7 @@ def save_to_tiffs(data_slices, meta, result, z_rng):
             meta.collection(), meta.experiment(), meta.channel(),
             x=result.x, y=result.y, z=zslice, dig=digits)
 
-        data = data_slices[zslice - result.z[0], :, :]
+        data = data_slices[zslice - z_rng[0], :, :]
         tiff.imsave(cutout_path + fname, data,
                     metadata={'DocumentName': fname}, compress=6)
 

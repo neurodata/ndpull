@@ -36,5 +36,5 @@ setup(name='ndpull',
       ],
       zip_safe=False,
       entry_points={'console_scripts':
-                    ['sliceDownload=ndpull.sliceDownload:main'], },
+                    ['ndpull=ndpull.ndpull:main'], },
       )

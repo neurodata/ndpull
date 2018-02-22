@@ -1,5 +1,7 @@
 from ndpull.ndpull import *
 
+import os
+
 
 class Testndpull():
 
@@ -84,17 +86,53 @@ class Testndpull():
 
         assert np.array_equal(data, data_direct)
 
+    def test_small_download(self):
+        result = argparse.Namespace(
+            x=[81920, 81920+512],
+            y=[81920, 81920+500],
+            z=[395, 412],
+            config_file='neurodata.cfg',
+            collection='lee',
+            experiment='lee14',
+            channel='image',
+            print_metadata=None,
+            full_extent=None,
+            res=0,
+            outdir='test_images/'
+        )
+        datatype = 'uint8'
 
-def collect_input_args(collection, experiment, channel, config_file=None, token=None, url='https://api.boss.neurodata.io', x=None, y=None, z=None, res=0, outdir='./', full_extent=False, print_metadata=False):
-    result = argparse.Namespace(
-        collection=collection,
-        experiment=experiment,
-        channel=channel,
-        config_file=config_file,
-        token=token,
-        url=url,
-        x=x, y=y, z=z, res=res, outdir=outdir,
-        full_extent=full_extent,
-        print_metadata=print_metadata
-    )
-    return result
+        result, rmt = validate_args(result)
+        download_slices(result, rmt)
+
+        # get the data from boss web api directly
+        cutout_url_base = "{}/{}/cutout/{}/{}/{}".format(
+            result.url, BOSS_VERSION, result.collection, result.experiment, result.channel)
+        cutout_url = "{}/{}/{}:{}/{}:{}/{}:{}/".format(
+            cutout_url_base, 0, result.x[0], result.x[1],
+            result.y[0], result.y[1], result.z[0], result.z[1])
+        resp = requests.get(cutout_url,
+                            headers={'Authorization': 'Token {}'.format(result.token),
+                                     'Accept': 'application/blosc'})
+        resp.raise_for_status()
+        data_decompress = blosc.decompress(resp.content)
+        data_np = np.fromstring(data_decompress, dtype=datatype)
+        data_direct = np.reshape(
+            data_np, (result.z[1]-result.z[0], result.y[1]-result.y[0], result.x[1]-result.x[0]))
+        for z in range(result.z[0], result.z[1]):
+            tiff.imsave('test_images/{}.tif'.format(z),
+                        data=data_direct[z-result.z[0], :])
+
+        # assert here that the tiff files are equal
+        for z in range(result.z[0], result.z[1]):
+            data_direct = tiff.imread('test_images/{}.tif'.format(z))
+
+            fname = 'test_images/{}_{}_{}_x{x[0]}-{x[1]}_y{y[0]}-{y[1]}_z{z:0{dig}d}.tif'.format(
+                result.collection, result.experiment, result.channel,
+                x=result.x, y=result.y, z=z, dig=3)
+            data_pull = tiff.imread(fname)
+
+            assert np.array_equal(data_direct, data_pull)
+
+            os.remove('test_images/{}.tif'.format(z))
+            os.remove(fname)
